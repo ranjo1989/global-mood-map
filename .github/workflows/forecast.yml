@@ -1,0 +1,23 @@
+name: Daily mood forecast
+
+on:
+  schedule:
+    - cron: '0 14 * * *' # 14:00 UTC daily
+  workflow_dispatch: {} # manual "Run workflow" button for testing
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Compose and post the planetary forecast
+        env:
+          API_URL: ${{ vars.API_URL || 'https://moodmap.earth' }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://moodmap.earth' }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+        run: npx tsx scripts/forecast.ts
