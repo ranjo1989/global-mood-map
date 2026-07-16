@@ -1,0 +1,42 @@
+# fly.toml — Fly.io config for Global Mood Map
+#
+# NOTE: app names are globally unique — 'global-mood-map' is a placeholder.
+# Rename it here (or let `fly launch --no-deploy` prompt you) before deploying.
+#
+# This app is ONE machine by design: in-memory store + in-process SSE hub +
+# JSONL on a local volume. Do not scale count above 1 — see
+# docs/DEPLOYMENT.md "Scale path" for what has to change first.
+
+app = 'global-mood-map'
+# primary_region = 'iad'  # set by `fly launch`, or pick one near your users
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  SIM = 'on'
+  TRUST_PROXY = '1'      # Fly's proxy is one hop; makes req.ip the client
+  DATA_DIR = '/app/data' # the mounted volume below
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  # SSE = long-lived connections; the machine must never sleep.
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/api/health'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '15s'  # boot seeds 48 h of sim history first
+
+[mounts]
+  source = 'gmm_data'
+  destination = '/app/data'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '1gb'  # headroom for the GeoLite2 in-memory DB + 48 h of reports
