@@ -7,8 +7,8 @@
 # JSONL on a local volume. Do not scale count above 1 — see
 # docs/DEPLOYMENT.md "Scale path" for what has to change first.
 
-app = 'global-mood-map'
-# primary_region = 'iad'  # set by `fly launch`, or pick one near your users
+app = 'moodmap-earth'
+primary_region = 'fra'
 
 [build]
   dockerfile = 'Dockerfile'
