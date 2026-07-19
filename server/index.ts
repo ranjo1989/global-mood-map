@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { RETENTION_HOURS } from '../shared/types';
-import { createApp } from './app';
+import { createApp, parseSupportCrypto } from './app';
 import { MemoryStore } from './store';
 import type { SseHub } from './sse';
 import { seedHistory, startLive } from './sim/index';
@@ -25,6 +25,7 @@ const dataDir = path.resolve(process.env.DATA_DIR || './data');
 const dataFile = path.join(dataDir, 'reports.jsonl');
 const sim = (process.env.SIM ?? 'on') !== 'off';
 const supportUrl = process.env.SUPPORT_URL || null;
+const supportCrypto = parseSupportCrypto(process.env.SUPPORT_CRYPTO);
 
 const trustProxyRaw = process.env.TRUST_PROXY ?? '';
 let trustProxy: boolean | number | undefined;
@@ -42,7 +43,7 @@ if (sim) {
   stopLive = startLive(store);
 }
 
-const app = createApp(store, { simulated: sim, trustProxy, supportUrl });
+const app = createApp(store, { simulated: sim, trustProxy, supportUrl, supportCrypto });
 const server = app.listen(port, () => {
   console.log(
     `Global Mood Map listening on http://localhost:${port} | ` +

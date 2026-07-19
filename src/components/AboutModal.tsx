@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { K_ANONYMITY } from '@shared/types';
+import { useEffect, useRef, useState } from 'react';
+import { K_ANONYMITY, type CryptoAddress } from '@shared/types';
 
 interface Props {
   open: boolean;
@@ -7,6 +7,8 @@ interface Props {
   simulated: boolean;
   /** Donations page from MetaResponse.supportUrl; null hides the link. */
   supportUrl: string | null;
+  /** Crypto donation addresses from MetaResponse.supportCrypto. */
+  supportCrypto: CryptoAddress[];
   onClose: () => void;
 }
 
@@ -15,10 +17,25 @@ interface Props {
  * restored to the previously focused element on close. Esc, backdrop
  * click, and the ✕ button all dismiss it.
  */
-export function AboutModal({ open, simulated, supportUrl, onClose }: Props) {
+export function AboutModal({ open, simulated, supportUrl, supportCrypto, onClose }: Props) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const copiedTimer = useRef<number | null>(null);
+
+  const copyAddress = (idx: number, address: string) => {
+    navigator.clipboard
+      ?.writeText(address)
+      .then(() => {
+        setCopiedIdx(idx);
+        if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current);
+        copiedTimer.current = window.setTimeout(() => setCopiedIdx(null), 2000);
+      })
+      .catch(() => {
+        // Clipboard blocked — the address is selectable text, no toast needed.
+      });
+  };
   // Backdrop dismissal must only fire when the press STARTED on the
   // backdrop — otherwise a text-selection drag out of the dialog closes it
   // (the browser fires click on the mousedown/mouseup common ancestor).
@@ -123,14 +140,42 @@ export function AboutModal({ open, simulated, supportUrl, onClose }: Props) {
           </li>
         </ul>
 
-        {supportUrl && (
-          <a className="support-link" href={supportUrl} target="_blank" rel="noreferrer">
-            <span className="support-heart" aria-hidden="true">
-              ♥
-            </span>{' '}
-            Support this project
-          </a>
+        {(supportUrl || supportCrypto.length > 0) && (
+          <>
+            <h3 className="about-subhead">Support this project</h3>
+            {supportUrl && (
+              <a className="support-link" href={supportUrl} target="_blank" rel="noreferrer">
+                <span className="support-heart" aria-hidden="true">
+                  ♥
+                </span>{' '}
+                Become a supporter
+              </a>
+            )}
+            {supportCrypto.map((c, i) => (
+              <div className="crypto-row" key={c.address}>
+                <span className="crypto-label">{c.label}</span>
+                <code className="crypto-address" title={c.address}>
+                  {c.address}
+                </code>
+                <button
+                  type="button"
+                  className="crypto-copy"
+                  onClick={() => copyAddress(i, c.address)}
+                  aria-label={`copy ${c.label} address`}
+                >
+                  {copiedIdx === i ? '✓ copied' : 'copy'}
+                </button>
+              </div>
+            ))}
+          </>
         )}
+
+        <p className="about-links">
+          <a href="/privacy">Privacy policy</a> ·{' '}
+          <a href="https://github.com/ranjo1989/global-mood-map" target="_blank" rel="noreferrer">
+            Source code
+          </a>
+        </p>
 
         <p className="about-credits">
           Basemap © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>{' '}

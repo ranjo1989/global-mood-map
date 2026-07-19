@@ -1179,6 +1179,70 @@ ul {
   line-height: 1;
 }
 
+.crypto-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.crypto-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.crypto-address {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  user-select: all;
+}
+
+.crypto-copy {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.crypto-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.about-links {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-dim, rgba(203, 213, 225, 0.65));
+}
+
+.about-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.about-links a:hover {
+  text-decoration: underline;
+}
+
 .about-credits {
   margin-top: 14px;
   padding-top: 12px;

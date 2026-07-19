@@ -372,6 +372,7 @@ export function App() {
         open={aboutOpen}
         simulated={!!meta?.simulated}
         supportUrl={meta?.supportUrl ?? null}
+        supportCrypto={meta?.supportCrypto ?? []}
         onClose={handleCloseAbout}
       />
     </div>

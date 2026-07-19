@@ -115,6 +115,7 @@ Clean up subscribers on `close`. No client identifier is logged.
 | `TRUST_PROXY` | unset (off) | Express `trust proxy` value: unset/`''` = off, `'1'` = trust the first hop, `'true'` = trust all hops. Required behind Fly/Render/Cloudflare so `req.ip` is the client address (rate limiting + geo lookup), not the load balancer. |
 | `GEO_FALLBACK` | unset | Optional `"lat,lng"` used when IP geolocation fails — dev/demo convenience. Invalid values are ignored. |
 | `SUPPORT_URL` | unset | Optional donations/support page URL, surfaced to clients as `supportUrl` in `/api/meta` (`null` when unset). |
+| `SUPPORT_CRYPTO` | unset | Optional comma-separated `Label:address` list of **public** crypto donation addresses (e.g. `ETH & USDT ERC-20:0xF34D…`), surfaced as `supportCrypto` in `/api/meta` and shown in the About modal. Labels ≤32 chars; addresses must be 20–100 alphanumeric chars; malformed entries are silently skipped. |
 
 The server logs one boot line with the effective config (values only, no secrets; `GEO_FALLBACK` and `SUPPORT_URL` are reported as set/unset).
 

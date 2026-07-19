@@ -1,12 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createApp } from '../server/app';
+import { createApp, parseSupportCrypto } from '../server/app';
 import { MemoryStore } from '../server/store';
 import type { SseHub } from '../server/sse';
 import { FINEST_RES, RESOLUTIONS, cellIdFor, snapToFinest } from '../shared/grid';
 import { DEFAULT_WINDOW_MINS, K_ANONYMITY, RETENTION_HOURS } from '../shared/types';
-import type { StoredReport } from '../shared/types';
+import type { CryptoAddress, StoredReport } from '../shared/types';
 import type { MoodId } from '../shared/moods';
 
 const MIN = 60_000;
@@ -26,7 +26,7 @@ interface TestApp {
 
 const hubs: SseHub[] = [];
 
-function makeApp(extra?: { supportUrl?: string | null }): TestApp {
+function makeApp(extra?: { supportUrl?: string | null; supportCrypto?: CryptoAddress[] }): TestApp {
   const store = new MemoryStore();
   let t = START;
   const clock = {
@@ -308,6 +308,7 @@ describe('GET /api/meta and unknown routes', () => {
       startedAt: START,
       simulated: true,
       supportUrl: null,
+      supportCrypto: [],
     });
   });
 
@@ -316,6 +317,37 @@ describe('GET /api/meta and unknown routes', () => {
     const res = await request(custom.app).get('/api/meta');
     expect(res.status).toBe(200);
     expect(res.body.supportUrl).toBe('https://example.com/support');
+  });
+
+  it('echoes configured crypto donation addresses', async () => {
+    const entry = { label: 'ETH', address: '0xF34Dc4adA642C70d811138467D11C6aED379D320' };
+    const custom = makeApp({ supportCrypto: [entry] });
+    const res = await request(custom.app).get('/api/meta');
+    expect(res.status).toBe(200);
+    expect(res.body.supportCrypto).toEqual([entry]);
+  });
+
+  it('parseSupportCrypto accepts valid entries and skips malformed ones', () => {
+    const addr = '0xF34Dc4adA642C70d811138467D11C6aED379D320';
+    expect(parseSupportCrypto(undefined)).toEqual([]);
+    expect(parseSupportCrypto('')).toEqual([]);
+    expect(parseSupportCrypto(`ETH & USDT ERC-20:${addr}`)).toEqual([
+      { label: 'ETH & USDT ERC-20', address: addr },
+    ]);
+    // Two entries, one malformed (address too short) — bad one is skipped.
+    expect(parseSupportCrypto(`ETH:${addr},BTC:short`)).toEqual([{ label: 'ETH', address: addr }]);
+    // Missing separator, empty label, and non-alphanumeric addresses are skipped.
+    expect(parseSupportCrypto('no-separator')).toEqual([]);
+    expect(parseSupportCrypto(`:${addr}`)).toEqual([]);
+    expect(parseSupportCrypto('ETH:<script>alert(1)</script>aaaaaaaaaaaaa')).toEqual([]);
+  });
+
+  it('serves the privacy policy at /privacy as HTML', async () => {
+    const res = await request(app).get('/privacy');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.text).toContain('Privacy Policy');
+    expect(res.headers['cache-control']).toBe('no-cache');
   });
 
   it('unknown /api paths return JSON 404, any method', async () => {

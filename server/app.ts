@@ -10,6 +10,7 @@ import { FINEST_RES, RESOLUTIONS, cellIdFor, snapToFinest } from '../shared/grid
 import { DEFAULT_WINDOW_MINS, K_ANONYMITY, RETENTION_HOURS } from '../shared/types';
 import type {
   ApiError,
+  CryptoAddress,
   GeoResponse,
   HealthResponse,
   MetaResponse,
@@ -22,6 +23,26 @@ import { resolveGeo } from './geo';
 import { renderOgPng } from './og';
 import { rateLimit } from './rateLimit';
 import { SseHub } from './sse';
+
+/**
+ * Parse the SUPPORT_CRYPTO env ("Label:address,Label:address") into
+ * publishable donation entries. Malformed entries are skipped — a typo'd
+ * env var must never break boot or leak garbage into the UI.
+ */
+export function parseSupportCrypto(raw: string | undefined): CryptoAddress[] {
+  if (!raw) return [];
+  const out: CryptoAddress[] = [];
+  for (const entry of raw.split(',')) {
+    const sep = entry.indexOf(':');
+    if (sep <= 0) continue;
+    const label = entry.slice(0, sep).trim();
+    const address = entry.slice(sep + 1).trim();
+    if (label.length === 0 || label.length > 32) continue;
+    if (!/^[A-Za-z0-9]{20,100}$/.test(address)) continue;
+    out.push({ label, address });
+  }
+  return out;
+}
 
 const reportSchema = z
   .object({
@@ -123,6 +144,8 @@ export function createApp(
     trustProxy?: boolean | number;
     /** SUPPORT_URL env — surfaced in /api/meta; null/absent when unset. */
     supportUrl?: string | null;
+    /** Parsed SUPPORT_CRYPTO env — surfaced in /api/meta; empty when unset. */
+    supportCrypto?: CryptoAddress[];
   }
 ): Express {
   const now = opts?.now ?? Date.now;
@@ -319,6 +342,7 @@ export function createApp(
       startedAt,
       simulated: opts?.simulated ?? false,
       supportUrl: opts?.supportUrl ?? null,
+      supportCrypto: opts?.supportCrypto ?? [],
     };
     res.json(body);
   });
@@ -361,6 +385,11 @@ export function createApp(
     // Direct hits on the entry point must also get the OG rewrite — keep
     // them out of express.static (which would stream the raw file).
     app.get('/index.html', sendIndex);
+    // Extensionless privacy-policy URL (the file ships via public/).
+    app.get('/privacy', (_req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(distDir, 'privacy.html'));
+    });
     app.use(
       // index: false → '/' falls through to the SPA fallback (sendIndex)
       // instead of express.static streaming index.html verbatim.

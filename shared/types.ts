@@ -113,6 +113,12 @@ export interface InsightsResponse {
   movers: Mover[]; // sorted by |deltaValence|, max 5
 }
 
+/** One crypto donation option (public receive address — safe to publish). */
+export interface CryptoAddress {
+  label: string; // e.g. "ETH & USDT ERC-20"
+  address: string;
+}
+
 export interface MetaResponse {
   k: number;
   windowMins: number;
@@ -122,6 +128,8 @@ export interface MetaResponse {
   simulated: boolean;
   /** SUPPORT_URL env (donations page); null when unset. */
   supportUrl: string | null;
+  /** SUPPORT_CRYPTO env ("Label:address,Label:address"); empty when unset. */
+  supportCrypto: CryptoAddress[];
 }
 
 export interface ReportAccepted {

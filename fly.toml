@@ -17,6 +17,8 @@ primary_region = 'fra'
   SIM = 'on'
   TRUST_PROXY = '1'      # Fly's proxy is one hop; makes req.ip the client
   DATA_DIR = '/app/data' # the mounted volume below
+  # Public donation receive address (shown in the About modal)
+  SUPPORT_CRYPTO = 'ETH & USDT ERC-20:0xF34Dc4adA642C70d811138467D11C6aED379D320'
 
 [http_service]
   internal_port = 8787
