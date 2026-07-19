@@ -70,7 +70,10 @@ export function MoodPicker({
   const [open, setOpen] = useState(false);
   const [mood, setMood] = useState<MoodId | null>(null);
   const [tag, setTag] = useState<TagId | null>(null);
-  const [locMode, setLocMode] = useState<LocMode>('auto');
+  // Device GPS by default: IP-based auto-location can be badly wrong on
+  // mobile carriers and VPNs (CGNAT exits in other countries), and the
+  // browser only prompts for permission at send time anyway.
+  const [locMode, setLocMode] = useState<LocMode>('device');
   const [geoState, setGeoState] = useState<GeoState>({ status: 'idle' });
   const [submitting, setSubmitting] = useState(false);
   const [cooldownLeft, setCooldownLeft] = useState(() => remainingCooldown());
@@ -135,8 +138,15 @@ export function MoodPicker({
           try {
             loc = await devicePosition();
           } catch {
-            onToast('Couldn’t get your device location — using the map center instead.', 'warn');
-            loc = getDefaultLocation();
+            // Permission denied or GPS unavailable — fall back to the
+            // server's IP estimate when we have one, else the map center.
+            if (geoState.status === 'ok') {
+              onToast('Couldn’t get your device location — using your approximate area instead.', 'warn');
+              loc = { lat: geoState.geo.lat, lng: geoState.geo.lng };
+            } else {
+              onToast('Couldn’t get your device location — using the map center instead.', 'warn');
+              loc = getDefaultLocation();
+            }
           }
         } else if (locMode === 'map') {
           if (!pickedLocation) {
@@ -252,8 +262,8 @@ export function MoodPicker({
 
           <div className="picker-label">Location</div>
           <div className="loc-options">
+            {locBtn('device', '📍', 'Device location', 'rounded to ~10 km — asks permission when you send')}
             {locBtn('auto', '📡', 'Approximate (auto)', autoSub)}
-            {locBtn('device', '📍', 'Device location')}
             {locBtn('center', '🗺️', 'Map center')}
             {locBtn('map', '🎯', 'Pick on map', undefined, onRequestPick)}
           </div>

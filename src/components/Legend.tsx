@@ -8,6 +8,7 @@ export function Legend() {
         <span>gloomy</span>
         <span>sunny</span>
       </div>
+      <div className="legend-note">emoji = a region’s top mood · bigger = more reports</div>
       <div className="legend-note">regions with &lt;{K_ANONYMITY} reports stay hidden</div>
     </div>
   );

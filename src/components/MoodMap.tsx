@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl';
 import type { ExpressionSpecification, StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
-import { MOODS, valenceColor, type MoodId } from '@shared/moods';
+import { MOODS, MOOD_LIST, valenceColor, type MoodId } from '@shared/moods';
 import { cellPolygon, parseCellId, resForZoom } from '@shared/grid';
 import { K_ANONYMITY, type AggregateCell } from '@shared/types';
 import { signedPct } from '../format';
@@ -16,6 +16,32 @@ const LINE_ID = 'mood-cells-line';
 const HOVER_FILL_ID = 'mood-cells-hover-fill';
 const HOVER_LINE_ID = 'mood-cells-hover-line';
 const SELECT_ID = 'mood-cells-selected';
+const EMOJI_ID = 'mood-cells-emoji';
+
+/**
+ * Mood emojis are rendered onto a canvas with the system emoji font and
+ * registered as map images — MapLibre's glyph pipeline is monochrome SDF,
+ * so real colored emoji must come in as icons, not text.
+ */
+const EMOJI_IMG_SIZE = 64;
+const EMOJI_IMG_RATIO = 2;
+
+function makeEmojiImage(emoji: string): ImageData | null {
+  const px = EMOJI_IMG_SIZE * EMOJI_IMG_RATIO;
+  const canvas = document.createElement('canvas');
+  canvas.width = px;
+  canvas.height = px;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.font = `${Math.round(px * 0.72)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Soft dark halo so emojis stay readable over bright glow areas.
+  ctx.shadowColor = 'rgba(4, 8, 20, 0.55)';
+  ctx.shadowBlur = px * 0.06;
+  ctx.fillText(emoji, px / 2, px / 2 + px * 0.03);
+  return ctx.getImageData(0, 0, px, px);
+}
 
 /**
  * Basemap style chain: production dark basemap → maplibre demo tiles →
@@ -262,23 +288,24 @@ export function MoodMap(props: Props) {
           ] as unknown as ExpressionSpecification,
         },
       });
+      // Cells are now a SUBTLE valence tint — the mood emojis (below) carry
+      // the story; the fill mostly provides region shape + hover/click area.
       map.addLayer({
         id: FILL_ID,
         type: 'fill',
         source: SRC_ID,
         paint: {
           'fill-color': ['get', 'color'] as unknown as ExpressionSpecification,
-          // ~0.3 at the k-anonymity floor, saturating around 0.75 for busy cells
           'fill-opacity': [
             'interpolate',
             ['linear'],
             ['get', 'count'],
             K_ANONYMITY,
-            0.3,
+            0.08,
             50,
-            0.55,
+            0.13,
             300,
-            0.75,
+            0.18,
           ] as unknown as ExpressionSpecification,
         },
       });
@@ -286,7 +313,7 @@ export function MoodMap(props: Props) {
         id: LINE_ID,
         type: 'line',
         source: SRC_ID,
-        paint: { 'line-color': 'rgba(235, 242, 255, 0.16)', 'line-width': 0.8 },
+        paint: { 'line-color': 'rgba(235, 242, 255, 0.07)', 'line-width': 0.6 },
       });
       // Hover highlight: a faint brightening fill plus a crisp outline,
       // driven by setFilter exactly like the selection layer.
@@ -310,6 +337,39 @@ export function MoodMap(props: Props) {
         source: SRC_ID,
         filter: cellFilter(selectedRef.current),
         paint: { 'line-color': '#f5b31d', 'line-width': 2.2 },
+      });
+      // The headline layer: each region's top mood as a real emoji, sized
+      // by report volume. Collision-aware (busiest regions win at low zoom,
+      // more emojis reveal as you zoom in). Images must be re-registered
+      // after every style swap — addImage state lives on the style.
+      for (const def of MOOD_LIST) {
+        const imgId = `mood-${def.id}`;
+        if (map.hasImage(imgId)) continue;
+        const img = makeEmojiImage(def.emoji);
+        if (img) map.addImage(imgId, img, { pixelRatio: EMOJI_IMG_RATIO });
+      }
+      map.addLayer({
+        id: EMOJI_ID,
+        type: 'symbol',
+        source: GLOW_SRC_ID,
+        layout: {
+          'icon-image': ['concat', 'mood-', ['get', 'topMood']] as unknown as ExpressionSpecification,
+          'icon-size': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0.8,
+            ['interpolate', ['linear'], ['get', 'count'], K_ANONYMITY, 0.2, 60, 0.3, 300, 0.42],
+            4,
+            ['interpolate', ['linear'], ['get', 'count'], K_ANONYMITY, 0.34, 60, 0.48, 300, 0.62],
+            7,
+            0.72,
+          ] as unknown as ExpressionSpecification,
+          'icon-allow-overlap': false,
+          'icon-padding': 2,
+          // Lower sort key renders first and wins collisions → busiest cells.
+          'symbol-sort-key': ['*', -1, ['get', 'count']] as unknown as ExpressionSpecification,
+        },
       });
       bindLayerEvents();
     };
